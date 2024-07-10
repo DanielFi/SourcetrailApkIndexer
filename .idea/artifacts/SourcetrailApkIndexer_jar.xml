@@ -1,0 +1,18 @@
+<component name="ArtifactManager">
+  <artifact type="jar" name="SourcetrailApkIndexer:jar">
+    <output-path>$PROJECT_DIR$/out/artifacts/SourcetrailApkIndexer_jar</output-path>
+    <root id="archive" name="SourcetrailApkIndexer.jar">
+      <element id="module-output" name="SourcetrailApkIndexer" />
+      <element id="extracted-dir" path="$MAVEN_REPOSITORY$/org/smali/dexlib2/2.5.2/dexlib2-2.5.2.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="$MAVEN_REPOSITORY$/com/google/code/findbugs/jsr305/3.0.2/jsr305-3.0.2.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="$MAVEN_REPOSITORY$/com/google/guava/guava/27.1-android/guava-27.1-android.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="$MAVEN_REPOSITORY$/com/google/guava/failureaccess/1.0.1/failureaccess-1.0.1.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="$MAVEN_REPOSITORY$/com/google/guava/listenablefuture/9999.0-empty-to-avoid-conflict-with-guava/listenablefuture-9999.0-empty-to-avoid-conflict-with-guava.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="$MAVEN_REPOSITORY$/org/checkerframework/checker-compat-qual/2.5.2/checker-compat-qual-2.5.2.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="$MAVEN_REPOSITORY$/com/google/errorprone/error_prone_annotations/2.2.0/error_prone_annotations-2.2.0.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="$MAVEN_REPOSITORY$/com/google/j2objc/j2objc-annotations/1.1/j2objc-annotations-1.1.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="$MAVEN_REPOSITORY$/org/codehaus/mojo/animal-sniffer-annotations/1.17/animal-sniffer-annotations-1.17.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="$USER_HOME$/Downloads/sourcetraildb_java_v4_db25_p1-linux-64bit-gcc/SourcetrailDB.jar" path-in-jar="/" />
+    </root>
+  </artifact>
+</component>
