@@ -7,9 +7,12 @@ import com.sourcetrail.sourcetraildb;
 
 import org.jf.dexlib2.ReferenceType;
 import org.jf.dexlib2.iface.*;
+import org.jf.dexlib2.iface.instruction.DualReferenceInstruction;
 import org.jf.dexlib2.iface.instruction.Instruction;
 import org.jf.dexlib2.iface.instruction.ReferenceInstruction;
+import org.jf.dexlib2.iface.reference.FieldReference;
 import org.jf.dexlib2.iface.reference.MethodReference;
+import org.jf.dexlib2.iface.reference.Reference;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -47,31 +50,42 @@ public class Indexer {
         for (ClassDef classDef : dexFile.getClasses()) visitClassDef(classDef);
     }
 
+    private int recordClass(NameHierarchy name) {
+        String recordJson = "{\"name_delimiter\": \".\", \"name_elements\": " + name.toJson() + "}";
+        int id = sourcetraildb.recordSymbol(recordJson);
+        sourcetraildb.recordSymbolKind(id, SymbolKind.SYMBOL_CLASS);
+        sourcetraildb.recordSymbolDefinitionKind(id, DefinitionKind.DEFINITION_EXPLICIT);
+
+        return id;
+    }
+
     private void visitClassDef(ClassDef classDef) {
         String type = classDef.getType();
 //        System.out.println(type);
         NameHierarchy name = nameForType(type);
-        int symbolId = symbolsByName.computeIfAbsent(name, new Function<NameHierarchy , Integer>() {
-            @Override
-            public Integer apply(NameHierarchy n) {
-                String recordJson = "{\"name_delimiter\": \".\", \"name_elements\": " + n.toJson() + "}";
-                int id = sourcetraildb.recordSymbol(recordJson);
-//                System.out.println(recordJson);
-                sourcetraildb.recordSymbolKind(id, SymbolKind.SYMBOL_CLASS);
-                sourcetraildb.recordSymbolDefinitionKind(id, DefinitionKind.DEFINITION_EXPLICIT);
-//                sourcetraildb.recordSymbolLocation(id, currentFileSymbol, 0, 0, 0, 0);
+        int symbolId = symbolsByName.computeIfAbsent(name, this::recordClass);
 
-                return id;
-            }
-        });
+        NameHierarchy superclass = nameForType(classDef.getSuperclass());
+        int superclassId = symbolsByName.computeIfAbsent(superclass, this::recordClass);
+        sourcetraildb.recordReference(symbolId, superclassId, ReferenceKind.REFERENCE_INHERITANCE);
 
         for (Method m : classDef.getMethods()) visitMethod(m);
 
 //        System.out.println(symbolId);
     }
 
-    private void visitField(Field field) {
+    private int recordField(NameHierarchy name) {
+        String recordJson = "{\"name_delimiter\": \".\", \"name_elements\": " + name.toJson() + "}";
+        int id = sourcetraildb.recordSymbol(recordJson);
+        sourcetraildb.recordSymbolKind(id, SymbolKind.SYMBOL_FIELD);
+        sourcetraildb.recordSymbolDefinitionKind(id, DefinitionKind.DEFINITION_EXPLICIT);
+        return id;
+    }
 
+    private void visitField(Field field) {
+        NameHierarchy name = nameForField(field);
+
+        int fieldId = symbolsByName.computeIfAbsent(name, this::recordField);
     }
 
     private int recordMethod(NameHierarchy name) {
@@ -82,12 +96,24 @@ public class Indexer {
         return id;
     }
 
+    private void recordMethodReference(int callerId, MethodReference reference) {
+        NameHierarchy referencedName = nameForType(reference.getDefiningClass());
+        referencedName.appendElement(reference.getName(), prettyType(reference.getReturnType()), formatStringParameters((List<String>) reference.getParameterTypes()));
+
+        sourcetraildb.recordReference(callerId, symbolsByName.computeIfAbsent(referencedName, this::recordMethod), ReferenceKind.REFERENCE_CALL);
+    }
+
+    private void recordFieldReference(int callerId, FieldReference reference) {
+        NameHierarchy referencedName = nameForType(reference.getDefiningClass());
+        referencedName.appendElement(reference.getName(), prettyType(reference.getType()), "");
+
+        sourcetraildb.recordReference(callerId, symbolsByName.computeIfAbsent(referencedName, this::recordField), ReferenceKind.REFERENCE_USAGE);
+    }
+
     private void visitMethod(Method method) {
         NameHierarchy name = nameForMethod(method);
 
-        int methodId = symbolsByName.computeIfAbsent(name, n -> {
-            return recordMethod(n);
-        });
+        int methodId = symbolsByName.computeIfAbsent(name, this::recordMethod);
 
         if (method.getImplementation() == null) return;
 
@@ -95,12 +121,25 @@ public class Indexer {
             if (instruction.getOpcode().referenceType == ReferenceType.METHOD) {
                 ReferenceInstruction referenceInstruction = (ReferenceInstruction) instruction;
                 MethodReference reference = (MethodReference) referenceInstruction.getReference();
-                NameHierarchy referencedName = nameForType(reference.getDefiningClass());
-                referencedName.appendElement(reference.getName(), reference.getReturnType(), formatStringParameters((List<String>) reference.getParameterTypes()));
+                recordMethodReference(methodId, reference);
+            }
 
-                sourcetraildb.recordReference(methodId, symbolsByName.computeIfAbsent(referencedName, n -> {
-                    return recordMethod(n);
-                }), ReferenceKind.REFERENCE_CALL);
+            if (instruction.getOpcode().referenceType2 == ReferenceType.METHOD) {
+                DualReferenceInstruction referenceInstruction = (DualReferenceInstruction) instruction;
+                MethodReference reference = (MethodReference) referenceInstruction.getReference2();
+                recordMethodReference(methodId, reference);
+            }
+
+            if (instruction.getOpcode().referenceType == ReferenceType.FIELD) {
+                ReferenceInstruction referenceInstruction = (ReferenceInstruction) instruction;
+                FieldReference reference = (FieldReference) referenceInstruction.getReference();
+                recordFieldReference(methodId, reference);
+            }
+
+            if (instruction.getOpcode().referenceType2 == ReferenceType.FIELD) {
+                DualReferenceInstruction referenceInstruction = (DualReferenceInstruction) instruction;
+                FieldReference reference = (FieldReference) referenceInstruction.getReference2();
+                recordFieldReference(methodId, reference);
             }
         }
     }
@@ -142,7 +181,13 @@ public class Indexer {
 
     private static NameHierarchy nameForMethod(Method method) {
         NameHierarchy name = nameForType(method.getDefiningClass());
-        name.appendElement(method.getName(), method.getReturnType(), formatParameters((List<MethodParameter>) method.getParameters()));
+        name.appendElement(method.getName(), prettyType(method.getReturnType()), formatParameters((List<MethodParameter>) method.getParameters()));
+        return name;
+    }
+
+    private static NameHierarchy nameForField(Field field) {
+        NameHierarchy name = nameForType(field.getDefiningClass());
+        name.appendElement(field.getName(), prettyType(field.getType()), "");
         return name;
     }
 }
