@@ -1,4 +1,4 @@
-package org.example;
+package danielf.sourcetrailapk;
 
 import com.sourcetrail.sourcetraildb;
 import org.jf.dexlib2.DexFileFactory;
@@ -18,7 +18,12 @@ public class Main {
             sourcetraildb.clear();
             sourcetraildb.beginTransaction();
 
-            Indexer indexer = new Indexer();
+            String mapping_path = null;
+            if (args.length > 2) {
+                mapping_path = args[2];
+            }
+
+            Indexer indexer = new Indexer(mapping_path);
             indexer.index(container);
 
             sourcetraildb.commitTransaction();

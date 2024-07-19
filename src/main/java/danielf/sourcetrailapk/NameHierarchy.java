@@ -1,4 +1,4 @@
-package org.example;
+package danielf.sourcetrailapk;
 
 import java.util.LinkedList;
 import java.util.List;
